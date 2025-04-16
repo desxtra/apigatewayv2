@@ -11,7 +11,7 @@ dockerfile
 .github/workflows/de.yml_
 .github/workflows/tes.yml
 .github/workflows/coba.yml
-.github/workflows/*
+# .github/workflows/*
 
 Dockerrun.aws.json
 
