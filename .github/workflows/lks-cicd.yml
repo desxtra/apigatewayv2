@@ -7,7 +7,7 @@ on:
 env:
   AWS_REGION: us-east-1  #Region anda
   ECR_REPO: lks-ecr-bebyschalke #ECR Repo Name
-  EB_APP_NAME: lk s-eb-apps-bebyschalke # Elastic Beanstalk App Name
+  EB_APP_NAME: lks-eb-apps-bebyschalke # Elastic Beanstalk App Name
   EB_ENV_NAME: Lks-eb-apps-bebyschalke-env # Elastic Beanstalk Env Name
   AWS_ACCOUNT_ID: 834549009763  # AWS Account ID
   S3_BUCKET: lks-dockerimage-bebyschalke-25  # Bucket for docker
