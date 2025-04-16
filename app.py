@@ -3,6 +3,7 @@ import boto3
 import os
 import requests
 from dotenv import load_dotenv
+import logging
 
 load_dotenv()
 
@@ -15,6 +16,14 @@ AWS_SESSION_TOKEN = os.getenv("AWS_SESSION_TOKEN")
 AWS_REGION = os.getenv("AWS_REGION")
 S3_BUCKET = os.getenv("S3_BUCKET_NAME")
 API_URL = os.getenv("API_GATEWAY_URL")
+LOG_PATH = os.getenv("EFS_PATH", "/mnt/efs/log/app.log")
+os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
+
+logging.basicConfig(
+    filename=LOG_PATH,
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
 
 s3_client = boto3.client(
     "s3",
