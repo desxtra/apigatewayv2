@@ -1,0 +1,79 @@
+name: LKS CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1  #Region anda
+  ECR_REPO: lks-ecr-bebyschalke #ECR Repo Name
+  EB_APP_NAME: lk s-eb-apps-bebyschalke # Elastic Beanstalk App Name
+  EB_ENV_NAME: Lks-eb-apps-bebyschalke-env # Elastic Beanstalk Env Name
+  AWS_ACCOUNT_ID: 834549009763  # AWS Account ID
+  S3_BUCKET: lks-dockerimage-bebyschalke-25  # Bucket for docker
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        run: |
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t $ECR_REPO .
+          docker tag $ECR_REPO:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:latest
+
+      - name: Generate Dockerrun.aws.json (v1)
+        run: |
+          echo '{
+            "AWSEBDockerrunVersion": "1",
+            "Image": {
+              "Name": "'$AWS_ACCOUNT_ID'.dkr.ecr.'$AWS_REGION'.amazonaws.com/'$ECR_REPO':latest",
+              "Update": "true"
+            },
+            "Ports": [
+              {
+                "ContainerPort": 8000,
+                "HostPort": 80
+              }
+            ]
+          }' > Dockerrun.aws.json
+
+      - name: Zip Dockerrun.aws.json
+        run: |
+          ZIP_FILE="app-$(date +%Y%m%d)-${{ github.run_number }}.zip"
+          echo "ZIP_FILE=$ZIP_FILE" >> $GITHUB_ENV
+          zip $ZIP_FILE Dockerrun.aws.json
+
+      - name: Upload to S3
+        run: |
+          aws s3 cp $ZIP_FILE s3://$S3_BUCKET/$ZIP_FILE
+          echo "S3_KEY=$ZIP_FILE" >> $GITHUB_ENV
+
+      - name: Create Application Version
+        run: |
+          VERSION_LABEL="v-$(date +%Y%m%d)-${{ github.run_number }}"
+          echo "VERSION_LABEL=$VERSION_LABEL" >> $GITHUB_ENV
+          aws elasticbeanstalk create-application-version \
+            --application-name ${{ env.EB_APP_NAME }} \
+            --version-label $VERSION_LABEL \
+            --source-bundle S3Bucket=${{ env.S3_BUCKET }},S3Key=${{ env.S3_KEY }}
+
+      - name: Update Environment
+        run: |
+          aws elasticbeanstalk update-environment \
+            --environment-name ${{ env.EB_ENV_NAME }} \
+            --version-label ${{ env.VERSION_LABEL }}
